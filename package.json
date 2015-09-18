@@ -11,9 +11,12 @@
     "url": "git+https://github.com/dolsup/BanmalMode.git"
   },
   "author": "",
-  "license": "ISC",
+  "license": "BEERWARE",
   "bugs": {
     "url": "https://github.com/dolsup/BanmalMode/issues"
   },
-  "homepage": "https://github.com/dolsup/BanmalMode#readme"
+  "homepage": "https://github.com/dolsup/BanmalMode#readme",
+  "dependencies": {
+    "mecab-ffi": "^0.1.0"
+  }
 }

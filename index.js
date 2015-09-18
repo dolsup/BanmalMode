@@ -14,6 +14,11 @@ var mecab = require('mecab-ffi');
 CANNOT BE SHORTEN, UNCOMBINED [ [ '붙이', 'VV' ], [ '어', 'EF' ] ]
 CANNOT BE SHORTEN, UNCOMBINED [ [ '부탁드리', 'VV' ], [ '어', 'EF' ] ]
 
+2음절 이상 어간은 이중모음화만 가능한 경우가 많음
+어간의 마지막 음절이 모음으로 시작하면 이중모음화 필수
+
+
+
 */
 
 
@@ -55,6 +60,11 @@ var replace = {
 }
 
 var shorten = {
+    "vowel": {
+        "ㅗ+ㅏ": "ㅘ",
+        "ㅜ+ㅓ": "ㅝ",
+        "ㅣ+ㅓ": "ㅕ"
+    },
     "하/VV+아/EF": "해",
     "하/VV+어/EF": "해",
     "하/VX+아/EF": "해",
@@ -64,6 +74,7 @@ var shorten = {
     "하/XSV+어/EF": "해",
     "되/VV+어/EF": "돼"
 }
+
 
 
 var config = {
@@ -101,14 +112,14 @@ function yo2hae(parsedString) {
             // 교체
             if(isSame(parsed[i], replace.yo2hae.Inflect)) {
                 newstr = replace.yo2hae.Inflect[styMor(parsed[i])][0];
-                flag = true;
+                flag = true; // 치환 가능
             } else {
                 bricks = breakInflect(parsed[i]);
                 for(var b = 0; b < bricks.length; b++) {
                     if(!config.si && bricks[b].toString() === si.toString()) bricks = bricks.splice(b-1, 1);
                     if(isSame(bricks[b], replace.yo2hae)) {
                         bricks[b] = replace.yo2hae[styMor(bricks[b])];
-                        flag = true;
+                        flag = true; // 치환 가능
                     }
                 }
             }
@@ -120,8 +131,27 @@ function yo2hae(parsedString) {
                     if(shorten[normalizeMorphemes(bricks)])
                         newstr = shorten[normalizeMorphemes(bricks)];
                     else {
+                        // 분해, 치환되었지만 축약이 정의되지 않은
                         bricks.length>1 && console.log("CANNOT BE SHORTEN, UNCOMBINED", bricks);
-                        newstr = assembly(bricks);
+                        
+                        // 어간 마지막 음절이 모음으로 시작하고 어미도 모음으로 시작하면 모음축약
+                        if(bricks[0][0].length > 1 && bricks[0][1] === "VV") {
+                            var vvjaso = jaso(bricks[0][0].slice(-1));
+                            console.log("ASD", vvjaso);
+                            if(true||vvjaso[0] === 'ㅇ' && vvjaso[2] === '' && bricks[1][1][0] === 'E') {
+                                var ejaso = jaso(bricks[1][0]);
+                                console.log("QWE", ejaso);
+                                if(ejaso[0] === 'ㅇ') {
+                                    var newvowel = shorten.vowel[vvjaso[1]+'+'+ejaso[1]];
+                                    console.log("ZXC", vvjaso+'+'+ejaso[1], newvowel)
+                                    if(newvowel) {
+                                        newstr = bricks[0][0].slice(0, -1) + glue(vvjaso[0], newvowel, ejaso[2]) + bricks[1][0].substring(1);
+                                        console.log("NEW", newstr)
+                                    } else newstr = assembly(bricks);
+                                } else newstr = assembly(bricks);
+                            } else newstr = assembly(bricks);
+                        } else newstr = assembly(bricks);
+                        // 여기 너무 더러워!!!
                     }
                 }
                 output = output.slice(0, originpos) + newstr + output.slice(originpos + originlen);
@@ -225,6 +255,21 @@ function normalizeMorphemes(mor) {
     }
     return string.join('+');
 }
+
+var Chos = [ "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ" ];
+var Jungs = [ "ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ" ];
+var Jongs = [ "", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ", "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ" ];
+function jaso(hangul) {
+   var code = hangul.charCodeAt(0) - 0xAC00;
+   var jong = code%28;
+   var jung = ((code-jong)/28)%21;
+   var cho = (((code-jong)/28)-jung)/21;
+   return [Chos[cho], Jungs[jung], Jongs[jong]];
+}
+function glue(cho, jung, jong) {
+    return String.fromCharCode(0xAC00 + ((Chos.indexOf(cho)*21)+Jungs.indexOf(jung))*28+Jongs.indexOf(jong));
+}
+
 
 output = input;
 yo2hae(parse(input));
